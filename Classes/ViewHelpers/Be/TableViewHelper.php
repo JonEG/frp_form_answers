@@ -13,7 +13,7 @@ class TableViewHelper extends AbstractViewHelper
     public function __construct(private readonly UriBuilder $uriBuilder, private readonly IconFactory $iconFactory, private readonly ConnectionPool $connectionPool)
     {
     }
-    public function initializeArguments()
+    public function initializeArguments(): void
     {
         $this->registerArgument('table', 'string', 'Database table name', true);
         $this->registerArgument('filter', 'array', 'Filter conditions', false, []);
@@ -21,7 +21,7 @@ class TableViewHelper extends AbstractViewHelper
         $this->registerArgument('pid', 'int', 'PID', true);
     }
 
-    public function render()
+    public function render(): string
     {
 
         $uriBuilder = $this->uriBuilder;

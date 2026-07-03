@@ -38,55 +38,44 @@ use TYPO3\CMS\Backend\Routing\UriBuilder;
  */
 class BeLinkViewHelper extends AbstractTagBasedViewHelper
 {
-
-    /**
-     * @var string
-     */
     protected $tagName = 'a';
+
     public function __construct(private readonly UriBuilder $uriBuilder)
     {
     }
 
-    /**
-     * Arguments initialization
-     *
-     * @return void
-     */
-    public function initializeArguments()
+    public function initializeArguments(): void
     {
-        $this->registerUniversalTagAttributes();
-        $this->registerTagAttribute('name', 'string', 'Specifies the name of an anchor');
-        $this->registerTagAttribute('rel', 'string', 'Specifies the relationship between the current document and the linked document');
-        $this->registerTagAttribute('rev', 'string', 'Specifies the relationship between the linked document and the current document');
-        $this->registerTagAttribute('target', 'string', 'Specifies where to open the linked document');
-        $this->registerTagAttribute('pageUid', 'int', 'Page Uid');
+        parent::initializeArguments();
+        $this->registerArgument('pageUid', 'int', 'Page Uid', false);
     }
 
-    public function render()
+    public function render(): string
     {
         $returnUrl = $this->getRequestUri();
         $urlParameters = [
             'returnUrl' => $returnUrl,
-            'id' => $this->arguments['pageUid']
+            'id' => $this->arguments['pageUid'],
         ];
         $uri = $this->getModuleUrl($urlParameters);
         $this->tag->addAttribute('href', $uri);
         $this->tag->setContent($this->renderChildren());
         $this->tag->forceClosingTag(true);
+
         return $this->tag->render();
     }
 
-    protected function getRequestUri()
+    protected function getRequestUri(): string
     {
-        return GeneralUtility::getIndpEnv('REQUEST_URI');
+        return (string)GeneralUtility::getIndpEnv('REQUEST_URI');
     }
 
     /**
+     * @param array<string, mixed> $urlParameters
      * @throws RouteNotFoundException
      */
-    protected function getModuleUrl(array $urlParameters)
+    protected function getModuleUrl(array $urlParameters): string
     {
-        $uriBuilder = $this->uriBuilder;
-        return $uriBuilder->buildUriFromRoute('web_FrpFormAnswersFormanswers',$urlParameters);
+        return (string)$this->uriBuilder->buildUriFromRoute('web_FrpFormAnswersFormanswers', $urlParameters);
     }
 }

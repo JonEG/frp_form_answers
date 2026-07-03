@@ -34,20 +34,15 @@ class ExportXml
     /**
      * View variables and their values
      *
-     * @var array
+     * @var array<string, mixed>
      * @see assign()
      */
-    protected $variables = [];
-
+    protected array $variables = [];
     /**
      * Add a variable to $this->viewData.
      * Can be chained, so $this->view->assign(..., ...)->assign(..., ...); is possible
-     *
-     * @param string $key Key of variable
-     * @param mixed $value Value of object
-     * @return ExportXml an instance of $this, to enable chaining
      */
-    public function assign($key, $value)
+    public function assign(string $key, mixed $value): self
     {
         $this->variables[$key] = $value;
         return $this;
@@ -56,31 +51,29 @@ class ExportXml
     /**
      * Add multiple variables to $this->viewData.
      *
-     * @param array $values array in the format array(key1 => value1, key2 => value2).
-     * @return ExportXml an instance of $this, to enable chaining
+     * @param array<string, mixed> $values
      */
-    public function assignMultiple(array $values)
+    public function assignMultiple(array $values): self
     {
         foreach ($values as $key => $value) {
             $this->assign($key, $value);
         }
+
         return $this;
     }
 
-    public function initializeView($view) {
-        return null;
+    public function initializeView(mixed $view): void
+    {
     }
 
     /**
      * Renders the view
-     *
-     * @return string The rendered view
-     * @api
      */
-    public function render()
+    public function render(): string
     {
         ob_start();
 
+        /** @var array<int|string, array<int|string, mixed>> $rows */
         $rows = $this->variables['rows'];
         $this->array_shift($rows);
 
@@ -93,32 +86,36 @@ class ExportXml
 
         echo "</tx_frpformanswers_domain_model_formentry>\n";
 
-        return ob_get_clean();
+        return (string)ob_get_clean();
     }
 
     /**
      * function array_shift
      * Function array_shift with resetting the key values (Indexed!)
-     * @param array $arr
+     * @param array<int|string, array<int|string, mixed>> $arr
      */
-    protected function array_shift(&$arr)
+    protected function array_shift(array &$arr): void
     {
         array_shift($arr);
-        $rows = array_values($arr);
+        $arr = array_values($arr);
     }
 
-    protected function arr2xml($arr, $index)
+    /**
+     * @param array<int|string, mixed> $arr
+     */
+    protected function arr2xml(array $arr, int|string $index): string
     {
-        $str = "\t<row index=\"".$index."\" type=\"array\">\n";
+        $str = "\t<row index=\"" . $index . "\" type=\"array\">\n";
 
         foreach ($arr as $field => $value) {
             if ($value instanceof \DateTime) {
                 $value = $value->format('c');
             }
-            $str .= "\t\t<".$field.">".htmlspecialchars(stripslashes($value))."</".$field.">\n";
+            $str .= "\t\t<" . $field . '>' . htmlspecialchars(stripslashes((string)$value)) . '</' . $field . ">\n";
         }
 
         $str .= "\t</row>\n";
+
         return $str;
     }
 }

@@ -34,29 +34,20 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class ExportXls
 {
-
-    /**
-     * @var Spreadsheet|null
-     */
     protected static ?Spreadsheet $spreadsheet = null;
 
     /**
      * View variables and their values
      *
-     * @var array
-     * @see assign()
-     */
-    protected $variables = [];
+     * @var array<string, mixed>
+     * @see assign()     */
+    protected array $variables = [];
 
     /**
      * Add a variable to $this->viewData.
      * Can be chained, so $this->view->assign(..., ...)->assign(..., ...); is possible
-     *
-     * @param string $key Key of variable
-     * @param mixed $value Value of object
-     * @return ExportXls an instance of $this, to enable chaining
      */
-    public function assign($key, $value)
+    public function assign(string $key, mixed $value): self
     {
         $this->variables[$key] = $value;
         return $this;
@@ -65,31 +56,31 @@ class ExportXls
     /**
      * Add multiple variables to $this->viewData.
      *
-     * @param array $values array in the format array(key1 => value1, key2 => value2).
-     * @return ExportXls an instance of $this, to enable chaining
+     * @param array<string, mixed> $values
      */
-    public function assignMultiple(array $values)
+    public function assignMultiple(array $values): self
     {
         foreach ($values as $key => $value) {
             $this->assign($key, $value);
         }
+
         return $this;
     }
 
     /**
-     * @return string|void
      * @throws \PhpOffice\PhpSpreadsheet\Exception
      * @throws \PhpOffice\PhpSpreadsheet\Writer\Exception
      */
-    public function render($data = null)
+    public function render(mixed $data = null): string
     {
         if (null === self::$spreadsheet) {
             self::$spreadsheet = new Spreadsheet();
-            self::$spreadsheet->getProperties()->setCreator("Frappant Forms Export")
-                ->setLastModifiedBy("Frappant Forms Export")
+            self::$spreadsheet->getProperties()->setCreator('Frappant Forms Export')
+                ->setLastModifiedBy('Frappant Forms Export')
                 ->setCreated(time());
         }
 
+        /** @var array<int|string, array<int|string, mixed>> $rows */
         $rows = $this->variables['rows'];
         // PHPExcel does not work with associative arrays - then to indexed array
         foreach ($rows as $key => $value) {
@@ -102,14 +93,16 @@ class ExportXls
 
         ob_start();
         $objWriter->save('php://output');
-        return ob_get_clean();
+
+        return (string)ob_get_clean();
     }
 
     /**
      * function setIndexedArray
      * Sets an associative array to an indexed array
+     * @param array<int|string, mixed> $arr
      */
-    private function setIndexedArray(&$arr)
+    private function setIndexedArray(array &$arr): void
     {
         $arr = array_values($arr);
     }
