@@ -12,7 +12,7 @@ use Frappant\FrpFormAnswers\View\FormEntry\ExportXls;
 use Frappant\FrpFormAnswers\View\FormEntry\ExportXml;
 use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Backend\Template\Components\ButtonBar;
-use TYPO3\CMS\Backend\Template\Components\Menu\Menu;
+use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -92,9 +92,9 @@ class FormEntryController extends ActionController
     /**
      * http headers to send with filedownload request @see exportAction
      *
-     * @var array
+     * @var array<int, array{0: string, 1: string|string[]}>
      */
-    protected $requestHeaders = [];
+    protected array $requestHeaders = [];
 
     protected FormEntryDemand $formEntryDemand;
 
@@ -151,11 +151,10 @@ class FormEntryController extends ActionController
      */
     public function showAction(FormEntry $formEntry): ResponseInterface
     {
-        $this->view->assign('formEntry', $formEntry);
-
         $moduleTemplate = $this->moduleTemplateFactory->create($this->request);
-        $moduleTemplate->setContent($this->view->render());
-        return $this->htmlResponse($moduleTemplate->renderContent());
+        $moduleTemplate->assign('formEntry', $formEntry);
+
+        return $moduleTemplate->renderResponse('FormEntry/Show');
     }
 
     /**
@@ -186,7 +185,6 @@ class FormEntryController extends ActionController
     /**
      * action mark single entry as deleted
      *
-     * @return void
      * @throws IllegalObjectTypeException
      */
     public function removeEntryAction(): ResponseInterface
@@ -252,8 +250,8 @@ class FormEntryController extends ActionController
         return $moduleTemplate->renderResponse($this->templateFilenameFromRequest());
     }
 
-    public function initializeExportAction(){
-
+    public function initializeExportAction(): void
+    {
         $args = $this->request->getArguments();
         $format = $args['format'];
         // $this->filename = $args['formEntryDemand']['formName'];
@@ -289,28 +287,14 @@ class FormEntryController extends ActionController
 	/**
 	 * export Action
      *
-	 * @param FormEntryDemand $formEntryDemand
-	 * @throws \TYPO3\CMS\Extbase\Mvc\Exception\StopActionException
-	 * @throws \TYPO3\CMS\Extbase\Mvc\Exception\UnsupportedRequestTypeException
+	 * @param FormEntryDemand|null $formEntryDemand
 	 */
-    public function exportAction(?FormEntryDemand $formEntryDemand = null)
+    public function exportAction(?FormEntryDemand $formEntryDemand = null): ResponseInterface
     {
-
         $format = $this->request->getArguments()['format'];
-        $formEntryDemand->setAllPids($this->request->getArguments()['allPids'] ?? false);
-        $pid = $_GET['id'];
+        $pid = (int)($_GET['id'] ?? 0);
 
-        if($formEntryDemand) {
-            $formEntries = $this->formEntryRepository->findbyDemand($formEntryDemand, $pid);
-            if (count($formEntries) === 0) {
-                $this->addFlashMessage('No entries found with your criteria',
-                    'No Entries found',
-                    ContextualFeedbackSeverity::WARNING,
-                    true
-                );
-                return $this->redirect('list', null, null, ['id' => $this->pid]);
-            }
-        } else {
+        if ($formEntryDemand === null) {
             $this->addFlashMessage('No Demand set',
                 'No Demand found',
                 ContextualFeedbackSeverity::ERROR,
@@ -319,68 +303,64 @@ class FormEntryController extends ActionController
             return $this->redirect('list', null, null, ['id' => $this->pid]);
         }
 
+        $formEntryDemand->setAllPids($this->request->getArguments()['allPids'] ?? false);
+        $formEntries = $this->formEntryRepository->findByDemand($formEntryDemand, $pid);
+        if (count($formEntries) === 0) {
+            $this->addFlashMessage('No entries found with your criteria',
+                'No Entries found',
+                ContextualFeedbackSeverity::WARNING,
+                true
+            );
+            return $this->redirect('list', null, null, ['id' => $this->pid]);
+        }
+
         $extensionConfiguration = $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['frp_formanswers'] ?? null;
-        $exportData = $this->dataExporter->getExport($formEntries, $formEntryDemand, $extensionConfiguration['useSubmitUid']['value'] ?? false);
+        $exportData = $this->dataExporter->getExport(
+            iterator_to_array($formEntries),
+            $formEntryDemand,
+            $extensionConfiguration['useSubmitUid']['value'] ?? false
+        );
 
         $this->formEntryRepository->setFormsToExported($formEntries);
 
 
-        $exporter = Null;
-        switch ($format) {
-            case 'Csv':
-                $exporter = new ExportCsv();
-                break;
-            case 'Xls':
-                $exporter = new ExportXls();
-                break;
-            case 'Xml':
-                $exporter = new ExportXml();
-                break;
-        }
-
-
+        $exporter = match ($format) {
+            'Csv' => new ExportCsv(),
+            'Xls' => new ExportXls(),
+            'Xml' => new ExportXml(),
+            default => throw new \InvalidArgumentException('Unsupported export format: ' . $format),
+        };
 
         $exporter->assign('rows', $exportData);
         $exporter->assign('formEntryDemand', $formEntryDemand);
 
-        // Get the content as a string
         $content = $exporter->render();
 
-        // Prepare a PSR-7 Response
         $stream = new Stream('php://memory', 'rw');
         $stream->write($content);
 
-        switch ($format) {
-            case 'Csv':
-                $response = new Response($stream, 200, [
-                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    'Content-Disposition' => 'attachment; filename="export.csv"',
-                ]);
-                break;
-            case 'Xls':
-                $response = new Response($stream, 200, [
-                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    'Content-Disposition' => 'attachment; filename="export.xlsx"',
-                ]);
-                break;
-            case 'Xml':
-                $response = new Response($stream, 200, [
-                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    'Content-Disposition' => 'attachment; filename="export.xml"',
-                ]);
-                break;
-        }
-
-        return $response;
+        return match ($format) {
+            'Csv' => new Response($stream, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="export.csv"',
+            ]),
+            'Xls' => new Response($stream, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="export.xlsx"',
+            ]),
+            'Xml' => new Response($stream, 200, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="export.xml"',
+            ]),
+        };
     }
 
     /**
      * Prepare the download request
      *
-     * @param string File Contents wich would be downloaded
-     * @return ResponseInterface http response with http headers and file contents
+     * @param string $renderedContent File contents which would be downloaded
      */
-    protected function generateDownloadResponse($renderedContent): ResponseInterface
+    protected function generateDownloadResponse(string $renderedContent): ResponseInterface
     {
         $response = $this->responseFactory->createResponse();
 
@@ -395,11 +375,9 @@ class FormEntryController extends ActionController
 
     /**
      * @todo check where this method is used
-     * @param string $formName
-     * @throws \TYPO3\CMS\Extbase\Mvc\Exception\StopActionException
      */
-    public function deleteFormnameAction($formName = ''){
-
+    public function deleteFormnameAction(string $formName = ''): ResponseInterface
+    {
         if(strlen($formName) > 0){
 
             $queryBuilder = $this->connectionPool->getConnectionForTable('tx_frpformanswers_domain_model_formentry');
@@ -423,7 +401,7 @@ class FormEntryController extends ActionController
      * Create menu
      *
      */
-    protected function createMenu($moduleTemplate)
+    protected function createMenu(ModuleTemplate $moduleTemplate): void
     {
         $this->uriBuilder->setRequest($this->request);
 
@@ -445,16 +423,14 @@ class FormEntryController extends ActionController
             $menu->addMenuItem($item);
         }
 
-        if ($menu instanceof Menu) {
-            $moduleTemplate->getDocHeaderComponent()->getMenuRegistry()->addMenu($menu);
-        }
+        $moduleTemplate->getDocHeaderComponent()->getMenuRegistry()->addMenu($menu);
     }
 
     /**
      * Create the panel of buttons
      *
      */
-    protected function createButtons($moduleTemplate)
+    protected function createButtons(ModuleTemplate $moduleTemplate): void
     {
         $buttonBar = $moduleTemplate->getDocHeaderComponent()->getButtonBar();
 
@@ -470,17 +446,18 @@ class FormEntryController extends ActionController
     }
 
     /**
-     * @param string $name — Case-insensitive header field name.
-     * @param string|string[] $value — Header value(s).
+     * @param string $name Case-insensitive header field name.
+     * @param string|string[] $value Header value(s).
      */
-    protected function setRequestHeader($name, $value) {
+    protected function setRequestHeader(string $name, string|array $value): void
+    {
         $this->requestHeaders[] = [$name, $value];
     }
 
     /**
-     * @return array headers wich should set on response
+     * @return array<int, array{0: string, 1: string|string[]}>
      */
-    protected function getRequestHeaders()
+    protected function getRequestHeaders(): array
     {
         return $this->requestHeaders;
     }
@@ -495,7 +472,8 @@ class FormEntryController extends ActionController
         return $GLOBALS['LANG'];
     }
 
-    private function templateFilenameFromRequest() {
+    private function templateFilenameFromRequest(): string
+    {
         $extbaseRequestParameters = $this->request->getAttribute('extbase');
         $templateFileName = $extbaseRequestParameters->getControllerName() . '/' .
             ucfirst($extbaseRequestParameters->getControllerActionName());

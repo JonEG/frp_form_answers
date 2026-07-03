@@ -4,7 +4,6 @@ namespace Frappant\FrpFormAnswers\Domain\Finishers;
 use Frappant\FrpFormAnswers\Event\ManipulateFormValuesEvent;
 use Frappant\FrpFormAnswers\Domain\Model\FormEntry;
 use TYPO3\CMS\Core\Context\Exception\AspectNotFoundException;
-use TYPO3\CMS\Core\EventDispatcher\EventDispatcher;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 use TYPO3\CMS\Form\Domain\Finishers\AbstractFinisher;
 use TYPO3\CMS\Form\Domain\Model\FormElements\FormElementInterface;
@@ -21,8 +20,12 @@ class SaveFormToDatabaseFinisher extends AbstractFinisher
     protected $formEntryRepository = null;
 
     protected EventDispatcherInterface $eventDispatcher;
-    public function __construct(EventDispatcher $eventDispatcher, FormEntryRepository $formEntryRepository, FormEntry $formEntry, PersistenceManager $persistenceManager)
-    {
+    public function __construct(
+        EventDispatcherInterface $eventDispatcher,
+        FormEntryRepository $formEntryRepository,
+        FormEntry $formEntry,
+        PersistenceManager $persistenceManager
+    ) {
         $this->eventDispatcher = $eventDispatcher;
         $this->formEntryRepository = $formEntryRepository;
         $this->formEntry = $formEntry;
@@ -81,9 +84,7 @@ class SaveFormToDatabaseFinisher extends AbstractFinisher
     }
 
     /**
-     * Returns the values of the submitted form
-     *
-     * @return []
+     * @return array<string, array<string, mixed>>
      */
     protected function getFormValues(): array
     {

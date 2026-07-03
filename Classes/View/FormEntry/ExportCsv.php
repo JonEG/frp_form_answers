@@ -29,132 +29,97 @@ namespace Frappant\FrpFormAnswers\View\FormEntry;
 /**
  * ExportCSV
  */
-class ExportCsv {
+class ExportCsv
+{
     /**
-     * Delimiter Array
-     * @var array
+     * @var array<string, string>
      */
-    protected $delimiter = array(
+    protected array $delimiter = [
         'komma' => ',',
         'semikolon' => ';',
-        'tab' => '\t'
-    );
+        'tab' => '\t',
+    ];
 
     /**
-     * Enclosure Array
-     * @var array
+     * @var array<string, string>
      */
-    protected $enclosure = array(
+    protected array $enclosure = [
         'single' => '\'',
-        'double' => '"'
-    );
+        'double' => '"',
+    ];
 
     /**
-     * View variables and their values
-     *
-     * @var array
-     * @see assign()
+     * @var array<string, mixed>
      */
-    protected $variables = [];
+    protected array $variables = [];
 
-    /**
-     * Add a variable to $this->viewData.
-     * Can be chained, so $this->view->assign(..., ...)->assign(..., ...); is possible
-     *
-     * @param string $key Key of variable
-     * @param mixed $value Value of object
-     * @return ExportCsv an instance of $this, to enable chaining
-     */
-    public function assign($key, $value)
+    public function assign(string $key, mixed $value): self
     {
         $this->variables[$key] = $value;
         return $this;
     }
 
     /**
-     * Add multiple variables to $this->viewData.
-     *
-     * @param array $values array in the format array(key1 => value1, key2 => value2).
-     * @return ExportCsv an instance of $this, to enable chaining
+     * @param array<string, mixed> $values
      */
-    public function assignMultiple(array $values)
+    public function assignMultiple(array $values): self
     {
         foreach ($values as $key => $value) {
             $this->assign($key, $value);
         }
+
         return $this;
     }
 
-    public function initializeView()
+    public function initializeView(): void
     {
-        return null;
     }
 
-    /**
-     * Renders the view
-     *
-     * @return string The rendered view
-     * @api
-     */
-    public function render()
+    public function render(): string
     {
         ob_start();
-            foreach ($this->variables['rows'] as $fields) {
-                echo $this->fputcsv2(
-                    $fields,
-                    $this->delimiter[$this->variables['formEntryDemand']->getDelimiter()],
-                    $this->enclosure[$this->variables['formEntryDemand']->getEnclosure()]
-                );
-            }
-        return ob_get_clean();
+        /** @var array<int|string, array<int|string, mixed>> $rows */
+        $rows = $this->variables['rows'];
+        /** @var FormEntryDemand $formEntryDemand */
+        $formEntryDemand = $this->variables['formEntryDemand'];
+        foreach ($rows as $fields) {
+            echo $this->fputcsv2(
+                $fields,
+                $this->delimiter[$formEntryDemand->getDelimiter()],
+                $this->enclosure[$formEntryDemand->getEnclosure()]
+            );
+        }
+
+        return (string)ob_get_clean();
     }
 
     /**
-     * Renders a partial.
-     *
-     * @param string $partialName
-     * @param string $sectionName
-     * @param array $variables
-     * @param boolean $ignoreUnknown Ignore an unknown section and just return an empty string
-     * @return string
+     * @param array<string, mixed> $variables
      */
-    public function renderPartial($partialName, $sectionName, array $variables, $ignoreUnknown = false)
+    public function renderPartial(string $partialName, string $sectionName, array $variables, bool $ignoreUnknown = false): string
     {
         return $this->render();
     }
 
     /**
-     * Renders a given section.
-     *
-     * @param string $sectionName Name of section to render
-     * @param array $variables The variables to use
-     * @param boolean $ignoreUnknown Ignore an unknown section and just return an empty string
-     * @return string rendered template for the section
-     * @throws Exception\InvalidSectionException
+     * @param array<string, mixed> $variables
      */
-    public function renderSection($sectionName, array $variables = [], $ignoreUnknown = false)
+    public function renderSection(string $sectionName, array $variables = [], bool $ignoreUnknown = false): string
     {
         return $this->render();
     }
 
     /**
-     * function fputscv2
-     * Funktion gem. php.net
-     * Behebt mögliche Fehlerfälle der ursprünglichen Funktion fputcsv
-     * @param array $fields
-     * @param string $delimiter
-     * @param string $enclosure
-     * @param boolean $mysql_null
-     * @return string
+     * @param array<int|string, mixed> $fields
      */
-    private function fputcsv2(array $fields, $delimiter = ';', $enclosure = '"', $mysql_null = false)
+    private function fputcsv2(array $fields, string $delimiter = ';', string $enclosure = '"', bool $mysqlNull = false): string
     {
-        $delimiter_esc = preg_quote($delimiter, '/');
-        $enclosure_esc = preg_quote($enclosure, '/');
+        $delimiterEsc = preg_quote($delimiter, '/');
+        $enclosureEsc = preg_quote($enclosure, '/');
 
-        $output = array();
+        $output = [];
         foreach ($fields as $field) {
-            if ($field === null && $mysql_null) {
+            if ($field === null && $mysqlNull) {
                 $output[] = 'NULL';
                 continue;
             }
@@ -162,10 +127,11 @@ class ExportCsv {
                 $field = $field->format('r');
             }
 
-            $output[] = preg_match("/(?:{$delimiter_esc}|{$enclosure_esc}|\s)/", $field) ? (
-                $enclosure . str_replace($enclosure, $enclosure . $enclosure, $field) . $enclosure
+            $output[] = preg_match("/(?:{$delimiterEsc}|{$enclosureEsc}|\s)/", (string)$field) ? (
+                $enclosure . str_replace($enclosure, $enclosure . $enclosure, (string)$field) . $enclosure
             ) : $field;
         }
+
         return join($delimiter, $output) . "\n";
     }
 }

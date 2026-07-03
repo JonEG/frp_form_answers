@@ -8,20 +8,9 @@ use TYPO3\CMS\Extbase\Persistence\Generic\QuerySettingsInterface;
 
 class FormAnswersUtility
 {
+    protected FormEntryRepository $formEntryRepository;
 
-    /**
-     * formEntryRepository
-     *
-     * @var FormEntryRepository
-     */
-    protected $formEntryRepository = null;
-
-    /**
-     * pageRepository
-     *
-     * @var PageRepository
-     */
-    protected $pageRepository = null;
+    protected PageRepository $pageRepository;
 
     public function __construct(PageRepository $pageRepository, FormEntryRepository $formEntryRepository)
     {
@@ -30,29 +19,25 @@ class FormAnswersUtility
     }
 
     /**
-     * [prepareFormAnswersArray description]
-     * @return [type]       [description]
+     * @return array<int, array<string, array<string, int>>>
      */
-    public function prepareFormAnswersArray()
+    public function prepareFormAnswersArray(): array
     {
+        $act_pid = (int)($_GET['id'] ?? 0);
+        $pageIds = [];
 
-        $act_pid = $_GET['id'] ?? 0;
-        $pageIds = array();
-
-        // Get a List from FormEntries in subpages
         $startPointPids = ($act_pid > 0 ? [$act_pid] : $GLOBALS['BE_USER']->returnWebmounts());
-        // Get all Pids with a formEntry list
         foreach ($startPointPids as $pageId) {
             foreach ($this->formEntryRepository->findAllInPidAndRootline($pageId) as $formEntry) {
-                if((is_int($formEntry->getPid())) && ($formEntry->getForm() !== null)) {
-                    if(isset($pageIds[$formEntry->getPid()][$formEntry->getForm()]['tot'])) {
+                if ((is_int($formEntry->getPid())) && ($formEntry->getForm() !== null)) {
+                    if (isset($pageIds[$formEntry->getPid()][$formEntry->getForm()]['tot'])) {
                         $pageIds[$formEntry->getPid()][$formEntry->getForm()]['tot'] += 1;
                     } else {
                         $pageIds[$formEntry->getPid()][$formEntry->getForm()]['tot'] = 1;
                     }
 
                     if (!$formEntry->isExported()) {
-                        if(isset($pageIds[$formEntry->getPid()][$formEntry->getForm()]['new'])) {
+                        if (isset($pageIds[$formEntry->getPid()][$formEntry->getForm()]['new'])) {
                             $pageIds[$formEntry->getPid()][$formEntry->getForm()]['new'] += 1;
                         } else {
                             $pageIds[$formEntry->getPid()][$formEntry->getForm()]['new'] = 1;
@@ -62,16 +47,17 @@ class FormAnswersUtility
             }
         }
 
-        $id = $_GET['id'] ?? 0;
-        unset($pageIds[(int)$id]);
+        $id = (int)($_GET['id'] ?? 0);
+        unset($pageIds[$id]);
 
         return $pageIds;
     }
+
     /**
-     * Get all names of the saved Forms
-     * @return array Formnames
+     * @param list<int> $pid
+     * @return list<string>
      */
-    public function getAllFormNames($pid)
+    public function getAllFormNames(array $pid): array
     {
         $querySettings = GeneralUtility::makeInstance(QuerySettingsInterface::class);
         $querySettings->setRespectStoragePage(true);
@@ -79,18 +65,17 @@ class FormAnswersUtility
         $this->formEntryRepository->setDefaultQuerySettings($querySettings);
         $allFormAnswers = $this->formEntryRepository->findAll();
         $formNames = [];
-        // Get FormNames from this page. We will separate them in the list View
         foreach ($allFormAnswers as $answer) {
             $formNames[$answer->getForm()] = $answer->getForm();
         }
+
         return array_keys($formNames);
     }
 
     /**
-     * Get all hashes of the saved Forms
-     * @return array Formhashes
+     * @return list<string>
      */
-    public function getAllFormHashes($pid)
+    public function getAllFormHashes(int $pid): array
     {
         $querySettings = GeneralUtility::makeInstance(QuerySettingsInterface::class);
         $querySettings->setRespectStoragePage(true);
@@ -99,10 +84,10 @@ class FormAnswersUtility
         $allFormAnswers = $this->formEntryRepository->findAll();
 
         $formHashes = [];
-        // Get FormNames from this page. We will separate them in the list View
         foreach ($allFormAnswers as $answer) {
             $formHashes[$answer->getFieldHash()] = $answer->getFieldHash();
         }
+
         return array_keys($formHashes);
     }
 
@@ -111,7 +96,7 @@ class FormAnswersUtility
         $this->formEntryRepository = $formEntryRepository;
     }
 
-    public function injectPageRepository($pageRepository): void
+    public function injectPageRepository(PageRepository $pageRepository): void
     {
         $this->pageRepository = $pageRepository;
     }

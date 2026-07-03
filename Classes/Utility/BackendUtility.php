@@ -1,30 +1,23 @@
 <?php
 namespace Frappant\FrpFormAnswers\Utility;
 
-use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Backend\Utility\BackendUtility as BackendUtilityCore;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
-use TYPO3\CMS\Core\Information\Typo3Version;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Backend\Utility\BackendUtility as BackendUtilityCore;
 
 /**
  * Class BackendUtility
  */
 class BackendUtility extends BackendUtilityCore
 {
-
-    /**
-     * Check if backend user is admin
-     *
-     * @return bool
-     */
-    public static function isBackendAdmin()
+    public static function isBackendAdmin(): bool
     {
         if (isset(self::getBackendUserAuthentication()->user)) {
             return self::getBackendUserAuthentication()->user['admin'] === 1;
         }
+
         return false;
     }
 
@@ -32,32 +25,13 @@ class BackendUtility extends BackendUtilityCore
      * Filter a pid array with only the pages that are allowed to be viewed from the backend user.
      * If the backend user is an admin, show all of course - so ignore this filter.
      *
-     * @param array $pids
-     * @return array
+     * @param list<int> $pids
+     * @return list<int>
      */
-    public static function filterPagesForAccess(array $pids)
+    public static function filterPagesForAccess(array $pids): array
     {
         if (!self::isBackendAdmin()) {
             $pageRepository = GeneralUtility::makeInstance(PageRepository::class);
-
-            /**
-             * @todo check if this if block can be deleted
-             */
-            $t3Version = GeneralUtility::makeInstance(Typo3Version::class);
-
-            if (version_compare($t3Version->getBranch(), '10', '<')) {
-                $expressionBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-                    ->getQueryBuilderForTable('pages')
-                    ->expr()
-                ;
-                $oldExpression = $expressionBuilder->lt('pages.doktype', 200);
-                $newExpression = $expressionBuilder->neq('pages.doktype', PageRepository::DOKTYPE_RECYCLER);
-                $pageRepository->where_hid_del = str_replace(
-                    $oldExpression,
-                    $newExpression,
-                    $pageRepository->where_hid_del
-                );
-            }
 
             $newPids = [];
             foreach ($pids as $pid) {
@@ -68,48 +42,40 @@ class BackendUtility extends BackendUtilityCore
             }
             $pids = $newPids;
         }
+
         return $pids;
     }
 
-    /**
-     * @return BackendUserAuthentication
-     * @SuppressWarnings(PHPMD.Superglobals)
-     */
     protected static function getBackendUserAuthentication(): BackendUserAuthentication
     {
         return $GLOBALS['BE_USER'];
     }
 
     /**
-     *   Get current PID in backend.
-     *   Uses various fallbacks depending on current view and backend module.
-     *   ToDo: Ask somebody, how this can be done simple :)
+     * Get current PID in backend.
+     * Uses various fallbacks depending on current view and backend module.
      */
-    public static function getCurrentPid($pageUid = null)
+    public static function getCurrentPid(?int $pageUid = null): int
     {
-        $context = GeneralUtility::makeInstance(Context::class);
-
         if (!$pageUid) {
-            $pageUid = (int) $GLOBALS['_REQUEST']['popViewId'];
+            $pageUid = (int) ($GLOBALS['_REQUEST']['popViewId'] ?? 0);
         }
         if (!$pageUid) {
-            $pageUid = (int) preg_replace('/(.*)(id=)([0-9]*)(.*)/i', '\\3', $GLOBALS['_REQUEST']['returnUrl']);
+            $pageUid = (int) preg_replace('/(.*)(id=)([0-9]*)(.*)/i', '\\3', (string)($GLOBALS['_REQUEST']['returnUrl'] ?? ''));
         }
         if (!$pageUid) {
-            $pageUid = (int) preg_replace('/(.*)(id=)([0-9]*)(.*)/i', '\\3', $GLOBALS['_POST']['returnUrl']);
+            $pageUid = (int) preg_replace('/(.*)(id=)([0-9]*)(.*)/i', '\\3', (string)($GLOBALS['_POST']['returnUrl'] ?? ''));
         }
         if (!$pageUid) {
-            $pageUid = (int) preg_replace('/(.*)(id=)([0-9]*)(.*)/i', '\\3', $GLOBALS['_GET']['returnUrl']);
+            $pageUid = (int) preg_replace('/(.*)(id=)([0-9]*)(.*)/i', '\\3', (string)($GLOBALS['_GET']['returnUrl'] ?? ''));
         }
-        if (!$pageUid) {
+        if (!$pageUid && isset($GLOBALS['TYPO3_REQUEST'])) {
             $pageUid = (int) $GLOBALS['TYPO3_REQUEST']->getAttribute('frontend.page.information')->getId();
         }
         if (!$pageUid) {
-            $pageUid = (int) $_GET['id'];
+            $pageUid = (int) ($_GET['id'] ?? 0);
         }
-        if (!$pageUid) {
-            $pageUid = 0;
-        }
+
         return $pageUid;
     }
 }

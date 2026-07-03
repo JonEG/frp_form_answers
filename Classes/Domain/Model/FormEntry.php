@@ -47,34 +47,27 @@ class FormEntry extends AbstractEntity
     protected $exported = false;
 
     /**
-     * @var \DateTime
-     */
-    protected $crdate;
-
-    /**
-     * exported
-     *
      * @var int
      */
-    protected $submitUid = '';
+    protected int $crdate = 0;
 
     /**
-     * Returns the answers
-     *
-     * @return array $answers
+     * @var int
      */
-    public function getAnswers()
+    protected int $submitUid = 0;
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function getAnswers(): array
     {
-        return json_decode($this->answers, 1);
+        return json_decode($this->answers, true) ?? [];
     }
 
     /**
-     * Sets the answers
-     *
-     * @param array $answers
-     * @return void
+     * @param array<string, array<string, mixed>> $answers
      */
-    public function setAnswers(array $answers)
+    public function setAnswers(array $answers): void
     {
         $this->answers = json_encode($answers);
         ksort($answers);
@@ -159,43 +152,22 @@ class FormEntry extends AbstractEntity
         return $this->exported;
     }
 
-    /**
-     * Set creation date
-     *
-     * @param int $crdate
-     */
-    public function setCrdate($crdate)
+    public function setCrdate(int $crdate): void
     {
         $this->crdate = $crdate;
     }
 
-    /**
-     * Get creation date
-     *
-     * @return int
-     */
-    public function getCrdate()
+    public function getCrdate(): int
     {
         return $this->crdate;
     }
 
-    /**
-     * Sets the submitUid
-     *
-     * @param int $submitUid
-     * @return void
-     */
-    public function setSubmitUid($submitUid)
+    public function setSubmitUid(int $submitUid): void
     {
         $this->submitUid = $submitUid;
     }
 
-    /**
-     * Returns the submitUid
-     *
-     * @return int
-     */
-    public function getSubmitUid()
+    public function getSubmitUid(): int
     {
         return $this->submitUid;
     }

@@ -6,10 +6,11 @@ use TYPO3\CMS\Backend\Form\Element\AbstractFormElement;
 
 class FormAnswersJsonElement extends AbstractFormElement
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function render(): array
     {
-        // Custom TCA properties and other data can be found in $this->data, for example the above
-        // parameters are available in $this->data['parameterArray']['fieldConf']['config']['parameters']
         $resultArray = $this->initializeResultArray();
         $fieldValues = json_decode($this->data['databaseRow']['answers'], true);
 
@@ -42,6 +43,7 @@ class FormAnswersJsonElement extends AbstractFormElement
         $out .= '</ul>';
 
         $resultArray['html'] = $out;
+
         return $resultArray;
     }
 }
